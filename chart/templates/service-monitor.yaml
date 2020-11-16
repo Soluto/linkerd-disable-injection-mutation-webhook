@@ -1,0 +1,28 @@
+{{ if .Values.serviceMonitor.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ include "linkerd-disable-injection-mutation-webhook.fullname" . }}
+  labels:
+{{ include "linkerd-disable-injection-mutation-webhook.labels" . | indent 4 }}
+spec:
+  endpoints:
+    - interval: 30s
+      targetPort: metrics
+      relabelings:
+        - sourceLabels: [__meta_kubernetes_pod_container_name]
+          targetLabel: container_name
+          replacement: ${1}
+          action: replace
+        - sourceLabels: [__meta_kubernetes_service_label_app]
+          targetLabel: app
+          replacement: ${1}
+          action: replace
+  jobLabel: app
+  namespaceSelector:
+    matchNames:
+      - {{ .Release.Namespace }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "linkerd-disable-injection-mutation-webhook.name" . }}
+{{- end }}

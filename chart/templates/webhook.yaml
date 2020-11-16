@@ -1,0 +1,35 @@
+{{- $ca := genCA "pull-secrets-ca" 3650 -}}
+{{- $altNames := list ( printf "%s-controller.%s" (include "linkerd-disable-injection-mutation-webhook.fullname" .) .Release.Namespace ) ( printf "%s.%s.svc" (include "linkerd-disable-injection-mutation-webhook.fullname" .) .Release.Namespace ) -}}
+{{- $cn := include "linkerd-disable-injection-mutation-webhook.fullname" . -}}
+{{- $cert := genSignedCert $cn nil $altNames 3650 $ca -}}
+
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ include "linkerd-disable-injection-mutation-webhook.fullname" . }}-tls
+type: Opaque
+data:
+  cert.pem: {{ b64enc $cert.Cert }}
+  cert.key: {{ b64enc $cert.Key }}
+
+---
+apiVersion: admissionregistration.k8s.io/v1beta1
+kind: MutatingWebhookConfiguration
+metadata:
+  name: {{ include "linkerd-disable-injection-mutation-webhook.fullname" . }}
+  labels:
+    app: {{ include "linkerd-disable-injection-mutation-webhook.fullname" . }}
+webhooks:
+  - name: {{ include "linkerd-disable-injection-mutation-webhook.fullname" . }}.soluto.com
+    clientConfig:
+      caBundle: {{ b64enc $ca.Cert }}
+      service:
+        name: {{ include "linkerd-disable-injection-mutation-webhook.fullname" . }}
+        namespace: {{ .Release.Namespace }}
+        path: "/mutate"
+    rules:
+      - operations: ["CREATE"]
+        apiGroups: ["batch"]
+        apiVersions: ["v1"]
+        resources: ["jobs"]
+    namespaceSelector: {}
