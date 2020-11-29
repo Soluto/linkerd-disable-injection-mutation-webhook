@@ -33,6 +33,9 @@ func Mutate(body []byte) ([]byte, error) {
 	}
 
 	annotations["linkerd.io/inject"] = "disabled"
+
+	Job.Spec.Template.SetAnnotations(annotations)
+
 	var admReviewResult *admissionv1beta1.AdmissionReview
 
 	mutatedJSON, err := json.Marshal(Job)
